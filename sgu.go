@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -25,9 +26,28 @@ type entryKey struct {
 	description string
 }
 
+// Checks if the description contains a card key in the format #[letter]+-[digit]+
+// If it does, it extracts the card key and returns the modified description and the card key
+// If it doesn't, it returns the original description and an empty string
+func extractCardKey(s string) (string, string) {
+	pattern := `\#[A-Za-z]+-\d+`
+	re := regexp.MustCompile(pattern)
+
+	cardKey := re.FindString(s)
+
+	if cardKey != "" {
+		modifiedString := strings.Replace(s, cardKey, "", 1)
+		modifiedString = strings.TrimSpace(modifiedString)
+		return modifiedString, cardKey[1:]
+	} else {
+		return s, ""
+	}
+}
+
 func FromTogglTimeEntry(toggl_entry *TimeEntry, project_map map[int]string) SguEntry {
 	date, err := time.Parse(time.RFC3339, toggl_entry.Start)
 	project := project_map[toggl_entry.ProjectID]
+	description, card_key := extractCardKey(toggl_entry.Description)
 
 	if err != nil {
 		panic(fmt.Sprintf("Failed to parse date: %v", err))
@@ -37,8 +57,8 @@ func FromTogglTimeEntry(toggl_entry *TimeEntry, project_map map[int]string) SguE
 		Date:     date.Format("02/01/2006"),
 		Project:  project,
 		Category: toggl_entry.Tags[0],
-		Activity: toggl_entry.Description,
-		CardKey:  "",
+		Activity: description,
+		CardKey:  card_key,
 		Hours:    float64(toggl_entry.Duration) / 3600,
 		UserName: os.Getenv("SGU_USER"),
 	}
