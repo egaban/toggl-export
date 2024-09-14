@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"regexp"
 	"strings"
@@ -64,6 +65,13 @@ func FromTogglTimeEntry(toggl_entry *TimeEntry, project_map map[int]string) SguE
 	}
 }
 
+// Makes the hours have five decimal places, and round up, so we avoid
+// losing some minutes.
+func roundHours(hours float64) float64 {
+	ratio := math.Pow(10, 5)
+	return math.Ceil(hours*ratio) / ratio
+}
+
 func WriteCsv(entries *[]SguEntry) {
 	filename := fmt.Sprintf("report-%s.csv", time.Now().Format("20060102"))
 	log.Println("Writing to file: ", filename)
@@ -91,7 +99,7 @@ func WriteCsv(entries *[]SguEntry) {
 			entry.Category,
 			entry.Activity,
 			entry.CardKey,
-			strings.Replace(fmt.Sprintf("%.2f", entry.Hours), ".", ",", 1),
+			strings.Replace(fmt.Sprintf("%.5f", roundHours(entry.Hours)), ".", ",", 1),
 			entry.UserName,
 		}
 		if err := writer.Write(record); err != nil {
